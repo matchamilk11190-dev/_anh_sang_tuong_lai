@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trường THCS An Hiệp - Hành Trình Vượt Thời Gian</title>
+    <style>
+        /* RESET & GLOBAL STYLES */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html {
+            width: 100%; height: 100%;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #050505; color: #ffffff;
+            overflow-x: hidden; scroll-behavior: smooth;
+        }
+
+        /* ------------------------------------- */
+        /* HIỆU ỨNG CHUYỂN TRANG (KHÉP/MỞ CỬA) */
+        /* ------------------------------------- */
+        #transition-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 9999; pointer-events: none; display: flex;
+        }
+        .door {
+            width: 50%; height: 100%; background: #000;
+            transition: transform 1s cubic-bezier(0.77, 0, 0.175, 1);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            position: relative;
+        }
+        .door::after { /* Đường viền phát sáng giữa 2 cánh cửa */
+            content: ''; position: absolute; top: 0; width: 2px; height: 100%;
+            background: linear-gradient(to bottom, transparent, #fff, transparent);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .door-left { transform: translateX(-100%); }
+        .door-left::after { right: 0; }
+        .door-right { transform: translateX(100%); }
+        .door-right::after { left: 0; }
+        
+        /* Khi kích hoạt chuyển trang */
+        .is-transitioning .door-left, .is-transitioning .door-right { transform: translateX(0); }
+        .is-transitioning .door::after { opacity: 1; transition-delay: 0.8s; }
+
+        /* ------------------------------------- */
+        /* QUẢN LÝ CÁC TRANG (PAGES) */
+        /* ------------------------------------- */
+        .page {
+            position: absolute; top: 0; left: 0; width: 100%;
+            display: none; opacity: 0; transition: opacity 0.5s ease;
+        }
+        .page.active { display: block; opacity: 1; position: relative; }
+
+        /* ------------------------------------- */
+        /* BACKGROUNDS CHO TỪNG TRANG */
+        /* ------------------------------------- */
+        /* Trang 1: Hố đen 3D */
+        #blackhole-canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; pointer-events: none;
+        }
+
+        /* Trang 2: Bóng cây xanh lộng gió */
+        .tree-shadow-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #0d1a12; z-index: -1; pointer-events: none;
+            overflow: hidden;
+        }
+        .tree-shadow-bg::before, .tree-shadow-bg::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(20, 80, 40, 0.4) 0%, transparent 60%),
+                radial-gradient(circle at 80% 20%, rgba(100, 255, 100, 0.1) 0%, transparent 40%);
+            background-size: 100px 100px;
+            filter: blur(20px) contrast(150%);
+            animation: windBlow 15s infinite alternate ease-in-out;
+            opacity: 0.6;
+        }
+        .tree-shadow-bg::after {
+            background-image: radial-gradient(circle at 30% 70%, rgba(40, 120, 60, 0.3) 0%, transparent 50%);
+            animation: windBlow 20s infinite alternate-reverse ease-in-out;
+            filter: blur(30px);
+        }
+        @keyframes windBlow {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(5%, 5%) rotate(2deg); }
+        }
+
+        /* Trang 3: Ánh sáng rực rỡ */
+        .light-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, #ffffff 0%, #a4c8e1 40%, #05192d 100%);
+            z-index: -1; pointer-events: none;
+            animation: pulseLight 8s infinite alternate;
+        }
+        @keyframes pulseLight {
+            0% { filter: brightness(0.8); }
+            100% { filter: brightness(1.2); }
+        }
+
+        /* ------------------------------------- */
+        /* CONTENT & TYPOGRAPHY */
+        /* ------------------------------------- */
+        main {
+            position: relative; z-index: 1; width: 100%; max-width: 900px;
+            margin: 0 auto; padding: 0 20px; display: flex; flex-direction: column;
+            gap: 25vh; padding-top: 20vh; padding-bottom: 20vh;
+        }
+        section { width: 100%; display: flex; flex-direction: column; justify-content: center; min-height: 40vh; }
+        
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 800; text-transform: uppercase;
+            letter-spacing: 3px; margin-bottom: 20px;
+        }
+        h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 400; letter-spacing: 2px; margin-bottom: 30px; }
+        
+        /* Màu chữ riêng cho từng trang */
+        #page-1 h1 { background: linear-gradient(90deg, #ff8a00, #e52e71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #page-1 h2 { color: #b3b3b3; }
+        
+        #page-2 h1 { color: #88ffaa; text-shadow: 0 0 20px rgba(100,255,100,0.5); }
+        #page-2 h2 { color: #c4f0d5; }
+        
+        #page-3 h1 { color: #000; text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+        #page-3 h2 { color: #333; }
+        #page-3 p { color: #111; text-shadow: none; font-weight: 500; }
+
+        p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem); line-height: 1.9; color: #d1d1d1;
+            margin-bottom: 25px; text-align: justify; text-shadow: 0px 2px 5px rgba(0,0,0,0.8);
+        }
+
+        /* Hiệu ứng cuộn mờ hiện dần */
+        .reveal {
+            opacity: 0; transform: translateY(100px) scale(0.9); filter: blur(20px);
+            transition: all 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .reveal.active { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+
+        /* Chữ mờ & sáng khi chạm/di chuột */
+        .interactive-text { transition: all 0.4s ease; cursor: pointer; padding: 10px; border-radius: 8px; }
+        .interactive-text:hover, .interactive-text:active {
+            filter: blur(2px); transform: scale(1.02); letter-spacing: 0.5px;
+        }
+        #page-1 .interactive-text:hover { color: #fff; background: rgba(255, 255, 255, 0.05); text-shadow: 0 0 15px rgba(155, 81, 224, 0.8); }
+        #page-2 .interactive-text:hover { color: #fff; background: rgba(100, 255, 100, 0.1); text-shadow: 0 0 20px rgba(100, 255, 150, 0.8); }
+        #page-3 .interactive-text:hover { color: #000; filter: blur(1px); transform: scale(1.05); text-shadow: 0 0 20px rgba(0,0,0,0.2); }
+
+        /* NÚT CHUYỂN TRANG */
+        .btn-wrapper { text-align: center; margin-top: 10vh; padding: 50px 0; }
+        .change-page-btn {
+            display: inline-block; padding: 20px 50px; font-size: 1.3rem; font-weight: bold;
+            color: #000; background: #fff; text-transform: uppercase; cursor: pointer;
+            border: none; border-radius: 50px; transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        .change-page-btn:hover {
+            transform: translateY(-5px) scale(1.05); box-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+        }
+        #page-1 .change-page-btn:hover { background: linear-gradient(90deg, #ff8a00, #e52e71); color: white; }
+        #page-2 .change-page-btn:hover { background: linear-gradient(90deg, #22c1c3, #fdbb2d); color: white; }
+    </style>
+</head>
+<body>
+
+    <!-- LỚP PHỦ HIỆU ỨNG KHÉP CỬA CHUYỂN TRANG -->
+    <div id="transition-layer">
+        <div class="door door-left"></div>
+        <div class="door door-right"></div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TRANG 1: HỐ ĐEN VŨ TRỤ (THCS AN HIỆP CŨ)   -->
+    <!-- ========================================== -->
+    <div class="page active" id="page-1">
+        <div id="blackhole-canvas"></div>
+        <main>
+            <section class="reveal">
+                <h1>THCS An Hiệp</h1>
+                <h2>Vết sẹo thời gian - Miền ký ức Sóc Trăng</h2>
+                <p class="interactive-text">Giữa dòng chảy vô tận của vũ trụ, có những nơi chốn không bao giờ bị lãng quên. Trường THCS An Hiệp cũ, nơi từng là một vì sao sáng giữa lòng Sóc Trăng, nay lùi về phía sau như một hố đen – tĩnh lặng nhưng chứa đựng sức hút mãnh liệt của ký ức.</p>
+            </section>
+            
+            <section class="reveal">
+                <h2>Cội nguồn của những hoài bão</h2>
+                <p class="interactive-text">Nơi đây không chỉ là những dãy nhà lợp ngói hoen màu, mà là bảo tàng của tuổi trẻ. Là tiếng trống trường giòn giã vang vọng xé toạc không gian tĩnh lặng, là những nét phấn trắng rơi lả tả trên bục giảng như tuyết mùa hạ.</p>
+                <p class="interactive-text">Chúng ta đã lớn lên từ hố sâu của sự ngây ngô, bị lực hấp dẫn của tri thức từ những người thầy, người cô kéo về phía ánh sáng.</p>
+            </section>
+
+            <section class="reveal btn-wrapper">
+                <button class="change-page-btn" onclick="goToPage(2)">Bước qua Cánh cửa Thời gian</button>
+            </section>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TRANG 2: BÓNG CÂY XANH (CAP SIÊU DÀI)      -->
+    <!-- ========================================== -->
+    <div class="page" id="page-2">
+        <div class="tree-shadow-bg"></div>
+        <main>
+            <section class="reveal">
+                <h1>Dưới Bóng Cây Xưa</h1>
+                <h2>Nơi gió kể chuyện học trò</h2>
+                <p class="interactive-text">Bạn có nhớ không? Khoảng sân trường rợp bóng những tán cây bàng, cây phượng già nua nhưng vĩ đại. Những buổi trưa hè Sóc Trăng oi ả, ánh nắng xuyên qua kẽ lá, rớt xuống mặt sân bê tông tạo thành muôn ngàn đốm sáng nhảy múa. Đó là bức tranh tuyệt mỹ nhất mà không một họa sĩ nào có thể vẽ lại được ngoài tạo hóa và ký ức của chúng ta.</p>
+                <p class="interactive-text">Dưới những tán cây ấy, bao nhiêu thế hệ đã ngồi kề vai nhau, lén đọc một cuốn truyện tranh, lén chia nhau nửa ổ bánh mì, hay đơn giản chỉ là gối đầu lên cặp sách mà mơ về một bầu trời xa rộng. Bóng cây bao trùm lấy chúng ta, che chở những bí mật tuổi mới lớn, những rung động đầu đời vụng dại chép vội vào trang lưu bút.</p>
+            </section>
+
+            <section class="reveal">
+                <h2>Bản giao hưởng của tiếng ve và gió</h2>
+                <p class="interactive-text">Gió lướt qua những tán lá xạc xào, hòa cùng điệp khúc râm ran của bầy ve sầu gọi hè. Ngôi trường cũ kỹ hiện lên như một ốc đảo bình yên. Lớp sơn vàng bong tróc từng mảng, cánh cửa gỗ xệ bản lề kêu cót két mỗi khi có cơn gió lớn ùa vào lớp. Những chi tiết tưởng chừng như không hoàn hảo ấy, giờ đây lại trở thành những mảnh ghép vô giá trong lăng kính của nỗi nhớ.</p>
+                <p class="interactive-text">Từng viên gạch lát nền đã mòn vẹt vì dấu chân qua lại. Từng chiếc bàn gỗ khắc đầy những hình vẽ nguệch ngoạc, những câu thơ con cóc, hay đôi khi là tên của một người mà ta từng thầm thương trộm nhớ. Ngôi trường đã dung chứa tất cả sự bồng bột, nghịch ngợm và cả những giọt nước mắt áp lực trước mỗi kỳ thi.</p>
+                <p class="interactive-text">Dưới bóng cây rợp mát ấy, người thầy tóc đã điểm hoa râm, giọng nói trầm ấm vẫn đều đều vang lên trong những tiết Văn chiều muộn. Cái bóng của thầy hắt dài trên mặt đất, lặng lẽ như người lái đò cắm cúi chở những chuyến hàng vô hình qua sông. Cây xanh vẫn ở đó, trường cũ vẫn ở đó, chỉ có chúng ta là vội vã rời đi khi mùa hạ cuối cùng gõ cửa.</p>
+            </section>
+
+            <section class="reveal">
+                <h2>Cái nôi của miền đất Sóc Trăng</h2>
+                <p class="interactive-text">Sóc Trăng hiền hòa, với những cánh đồng lúa bạt ngàn và nhịp sống êm đềm, đã nuôi dưỡng nên một THCS An Hiệp mộc mạc mà kiên cường. Học sinh An Hiệp dù không sinh ra ở vạch đích, nhưng lại sở hữu đôi cánh của ý chí. Bóng cây xanh của trường không làm chúng ta bé nhỏ đi, mà rèn luyện cho chúng ta cách bám rễ sâu vào đất mẹ, để rồi vươn những cành lá tít tắp lên bầu trời cao.</p>
+                <p class="interactive-text">Hôm nay nhìn lại, bóng cây ấy không chỉ là bóng râm vật lý, mà là bệ phóng tinh thần. Dù ngôi trường cũ có nhường chỗ cho những cơ sở vật chất mới khang trang hơn, thì hình bóng "ngôi nhà thứ hai" lọt thỏm giữa những tàng cây xanh ngắt vẫn mãi mãi là biểu tượng bất diệt trong trái tim mỗi cựu học sinh.</p>
+            </section>
+
+            <section class="reveal btn-wrapper">
+                <button class="change-page-btn" onclick="goToPage(3)">Tiến vào Ánh Sáng Tương Lai</button>
+            </section>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TRANG 3: TƯƠNG LAI (KẾT THÚC)              -->
+    <!-- ========================================== -->
+    <div class="page" id="page-3">
+        <div class="light-bg"></div>
+        <main>
+            <section class="reveal">
+                <h1>Khởi Nguyên Mới</h1>
+                <h2>Hành trình không có điểm dừng</h2>
+                <p class="interactive-text">Khi trang sách của quá khứ khép lại, cũng là lúc bình minh của tương lai bừng sáng. Chúng ta bước ra khỏi cánh cổng trường xưa, mang theo hành trang là những tri thức, là tình yêu thương và sự kỳ vọng của những người ở lại. Phía trước không còn là khoảng sân nhỏ bé, mà là biển lớn của cuộc đời.</p>
+                <p class="interactive-text">Di sản của THCS An Hiệp cũ không nằm ở những bức tường vật lý, mà chảy trong huyết quản của những người con đã trưởng thành từ nơi ấy. Tương lai rực rỡ này thuộc về bạn. Hãy để những hoài niệm đẹp đẽ nhất hóa thành ánh sáng soi đường, đưa bạn vươn tới những đỉnh cao mới.</p>
+                <br><br><br>
+                <h2 style="text-align: center; font-weight: 800; color: #000;">THE END.</h2>
+            </section>
+        </main>
+    </div>
+
+    <!-- Script cho 3D và Hiệu ứng chuyển trang -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        /* ---------------------------------------------------- */
+        /* 1. XỬ LÝ CHUYỂN TRANG (KHÉP/MỞ CỬA)                  */
+        /* ---------------------------------------------------- */
+        const transitionLayer = document.getElementById('transition-layer');
+        let isAnimating = false;
+
+        function goToPage(targetPageId) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            // Kích hoạt hiệu ứng đóng cửa
+            transitionLayer.classList.add('is-transitioning');
+
+            // Chờ cửa đóng kín (khoảng 1s)
+            setTimeout(() => {
+                // Ẩn tất cả các trang
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // Hiển thị trang mục tiêu
+                const targetPage = document.getElementById(`page-${targetPageId}`);
+                targetPage.classList.add('active');
+                
+                // Cuộn trang lên đầu ngay lập tức
+                window.scrollTo(0, 0);
+
+                // Quản lý Three.js để tối ưu hiệu năng
+                if(targetPageId !== 1) {
+                    document.getElementById('blackhole-canvas').style.display = 'none';
+                } else {
+                    document.getElementById('blackhole-canvas').style.display = 'block';
+                }
+
+                // Reset lại hiệu ứng scroll reveal cho trang mới
+                document.querySelectorAll('.reveal').forEach(el => el.classList.remove('active'));
+
+                // Mở cửa ra
+                setTimeout(() => {
+                    transitionLayer.classList.remove('is-transitioning');
+                    isAnimating = false;
+                }, 100); // Đợi 1 chút trước khi mở để tránh giật
+
+            }, 1000); // Thời gian delay bằng với thời gian CSS transition
+        }
+
+        /* ---------------------------------------------------- */
+        /* 2. HIỆU ỨNG CUỘN TRANG (SCROLL REVEAL)               */
+        /* ---------------------------------------------------- */
+        const revealOptions = { threshold: 0.1, rootMargin: "0px 0px -50px 0px" };
+        const revealOnScroll = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                } else {
+                    entry.target.classList.remove('active');
+                }
+            });
+        }, revealOptions);
+
+        // Hàm áp dụng Observer cho tất cả các phần tử
+        function initScrollReveal() {
+            document.querySelectorAll('.reveal').forEach(el => revealOnScroll.observe(el));
+        }
+        initScrollReveal();
+
+        /* ---------------------------------------------------- */
+        /* 3. THREE.JS HỐ ĐEN (GIỮ NGUYÊN TỪ BẢN TRƯỚC)         */
+        /* ---------------------------------------------------- */
+        const container = document.getElementById('blackhole-canvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 100; camera.position.y = 30; camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const particleCount = 12000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const colorObj = new THREE.Color();
+
+        for (let i = 0; i < particleCount; i++) {
+            const radius = Math.random() * 80 + 5; 
+            const theta = Math.random() * Math.PI * 2; 
+            const y = (Math.random() - 0.5) * (150 / radius); 
+            positions[i * 3] = radius * Math.cos(theta);
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = radius * Math.sin(theta);
+
+            if (radius < 15) colorObj.setHSL(0.05 + Math.random()*0.1, 1, 0.5); 
+            else if (radius < 40) colorObj.setHSL(0.7 + Math.random()*0.1, 0.8, 0.6); 
+            else colorObj.setHSL(0.6, 0.5, 0.2 + Math.random()*0.3); 
+
+            colors[i * 3] = colorObj.r; colors[i * 3 + 1] = colorObj.g; colors[i * 3 + 2] = colorObj.b;
+            sizes[i] = Math.random() * 2;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.5, vertexColors: true, blending: THREE.AdditiveBlending,
+            transparent: true, opacity: 0.8, depthWrite: false
+        });
+
+        const blackHoleSystem = new THREE.Points(geometry, material);
+        scene.add(blackHoleSystem);
+
+        const coreGeo = new THREE.SphereGeometry(4.5, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        scene.add(new THREE.Mesh(coreGeo, coreMat));
+
+        let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - windowHalfX) * 0.05; mouseY = (e.clientY - windowHalfY) * 0.05;
+        });
+        document.addEventListener('touchmove', (e) => {
+            mouseX = (e.touches[0].clientX - windowHalfX) * 0.05; mouseY = (e.touches[0].clientY - windowHalfY) * 0.05;
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            blackHoleSystem.rotation.y -= 0.002;
+            blackHoleSystem.rotation.z = Math.sin(time * 0.2) * 0.05;
+            targetX = mouseX * 0.5; targetY = mouseY * 0.5;
+            camera.position.x += (targetX - camera.position.x) * 0.02;
+            camera.position.y += (-targetY + 30 - camera.position.y) * 0.02;
+            camera.lookAt(scene.position);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
